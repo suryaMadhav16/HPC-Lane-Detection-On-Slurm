@@ -64,7 +64,7 @@ class Trainer:
         return device
 
     def _setup_optimizer(self, model: nn.Module) -> optim.Optimizer:
-        """Setup optimizer based on configuration"""
+        """Setup optimizer based on configuration"""    
         if self.config['training']['optimizer'].lower() == 'adamw':
             optimizer = optim.AdamW(
                 model.parameters(),
@@ -77,20 +77,10 @@ class Trainer:
         return optimizer
 
     def train(self, 
-              model: nn.Module,
-              train_loader: DataLoader,
-              val_loader: Optional[DataLoader] = None) -> Dict[str, Any]:
-        """
-        Train the model
-        
-        Args:
-            model (nn.Module): Model to train
-            train_loader (DataLoader): Training data loader
-            val_loader (DataLoader, optional): Validation data loader
-            
-        Returns:
-            Dict[str, Any]: Training history
-        """
+            model: nn.Module,
+            train_loader: DataLoader,
+            val_loader: Optional[DataLoader] = None) -> Dict[str, Any]:
+        """Train the model"""
         model = model.to(self.device)
         criterion = CombinedLoss().to(self.device)
         optimizer = self._setup_optimizer(model)
@@ -100,7 +90,9 @@ class Trainer:
             'train_losses': [],
             'val_losses': [],
             'train_metrics': [],
-            'val_metrics': []
+            'val_metrics': [],
+            'learning_rates': [],
+            'epochs': []
         }
         
         logging.info("Starting training...")
@@ -116,7 +108,12 @@ class Trainer:
                 optimizer=optimizer,
                 epoch=epoch
             )
+            
+            # Update history
             training_history['train_metrics'].append(train_metrics)
+            training_history['train_losses'].append(train_metrics.batch_loss)
+            training_history['learning_rates'].append(optimizer.param_groups[0]['lr'])
+            training_history['epochs'].append(epoch + 1)
             
             # Validate if loader provided
             if val_loader is not None:
@@ -127,6 +124,7 @@ class Trainer:
                     epoch=epoch
                 )
                 training_history['val_metrics'].append(val_metrics)
+                training_history['val_losses'].append(val_metrics.batch_loss)
                 
                 # Save best model
                 if val_metrics.batch_loss < best_val_loss:
@@ -139,21 +137,17 @@ class Trainer:
                         is_best=True
                     )
             
-            # Save regular checkpoint
-            if (epoch + 1) % self.config['logging']['save_frequency'] == 0:
-                self._save_checkpoint(
-                    model=model,
-                    optimizer=optimizer,
-                    epoch=epoch,
-                    metrics=train_metrics,
-                    is_best=False
-                )
-            
-            epoch_time = time.time() - epoch_start_time
-            logging.info(f"Epoch {epoch+1}/{self.config['training']['epochs']} completed in {epoch_time:.2f}s")
+            # Print epoch summary
+            logging.info(
+                f"Epoch {epoch+1}/{self.config['training']['epochs']} - "
+                f"Train Loss: {train_metrics.batch_loss:.4f} - "
+                f"Time: {train_metrics.time_taken:.2f}s"
+            )
+            if val_loader is not None:
+                logging.info(f"Val Loss: {val_metrics.batch_loss:.4f}")
         
         return training_history
-
+        
     def _train_epoch(self,
                     model: nn.Module,
                     train_loader: DataLoader,
@@ -285,3 +279,24 @@ class Trainer:
         
         torch.save(checkpoint, path)
         logging.info(f"Checkpoint saved: {path}")
+
+    def get_formatted_history(self, history: Dict[str, Any]) -> Dict[str, Any]:
+        """Format history for visualization"""
+        formatted = {}
+        
+        # Extract metrics
+        formatted['train_losses'] = [m.batch_loss for m in history['train_metrics']]
+        formatted['val_losses'] = [m.batch_loss for m in history['val_metrics']] if history['val_metrics'] else []
+        formatted['learning_rates'] = [m.learning_rate for m in history['train_metrics']]
+        formatted['epochs'] = list(range(1, len(history['train_metrics']) + 1))
+        
+        # System metrics
+        formatted['cpu_utilization'] = [m.cpu_utilization for m in history['train_metrics']]
+        formatted['memory_used'] = [m.memory_used for m in history['train_metrics']]
+        if history['train_metrics'][0].gpu_utilization is not None:
+            formatted['gpu_utilization'] = [m.gpu_utilization for m in history['train_metrics']]
+        
+        # Training time
+        formatted['time_per_epoch'] = [m.time_taken for m in history['train_metrics']]
+        
+        return formatted

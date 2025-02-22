@@ -56,7 +56,7 @@ def create_dataloaders(config: dict) -> tuple:
         dataset_path=config['dataset']['path'],
         train=True,
         size=tuple(config['dataset']['image_size'])
-    )
+    )    
     
     val_dataset = LaneDataset(
         dataset_path=config['dataset']['path'],
@@ -112,7 +112,7 @@ def main(config_path: str):
             backbone=config['model']['backbone'],
             pretrained=config['model']['pretrained']
         )
-        model = model.to(device)
+        model = model.to(device)        
         logging.info("Model initialized and moved to device")
         
         # Initialize trainer
@@ -124,9 +124,11 @@ def main(config_path: str):
             train_loader=train_loader,
             val_loader=val_loader
         )
+
+        formatted_history = trainer.get_formatted_history(training_history)
         
         # Plot training history
-        visualizer.plot_training_history(training_history)
+        visualizer.plot_training_history(formatted_history)
         
         # Generate and save system metrics report
         system_report = profiler.generate_report()
@@ -146,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/base_config.yaml",
+        default="configs/gpu_config.yaml",
         help="Path to configuration file"
     )
     args = parser.parse_args()

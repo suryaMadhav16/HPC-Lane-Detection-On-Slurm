@@ -58,91 +58,99 @@ class Visualizer:
             plt.savefig(os.path.join(self.save_dir, f"{save_name}.png"), dpi=300, bbox_inches='tight')
         plt.close()
 
-    def plot_training_history(self, history: Dict[str, List[float]]):
+        
+    def plot_training_history(self, history: Dict[str, List[Any]]):
         """Plot training metrics history"""
         plt.figure(figsize=(15, 10))
         
+        # Extract metrics from TrainingMetrics objects
+        train_losses = [metric.batch_loss for metric in history['train_metrics']]
+        val_losses = [metric.batch_loss for metric in history['val_metrics']] if history['val_metrics'] else None
+        
+        epochs = range(1, len(train_losses) + 1)
+        
         # Loss plot
         plt.subplot(2, 2, 1)
-        plt.plot(history['train_loss'], label='Training Loss')
-        if 'val_loss' in history:
-            plt.plot(history['val_loss'], label='Validation Loss')
+        plt.plot(epochs, train_losses, label='Training Loss')
+        if val_losses:
+            plt.plot(epochs, val_losses, label='Validation Loss')
         plt.title('Loss History')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
         plt.grid(True)
 
-        # Accuracy plot
+        # System Metrics plot
         plt.subplot(2, 2, 2)
-        plt.plot(history['train_accuracy'], label='Training Accuracy')
-        if 'val_accuracy' in history:
-            plt.plot(history['val_accuracy'], label='Validation Accuracy')
-        plt.title('Accuracy History')
+        cpu_util = [metric.cpu_utilization for metric in history['train_metrics']]
+        memory_util = [metric.memory_used for metric in history['train_metrics']]
+        plt.plot(epochs, cpu_util, label='CPU Utilization')
+        plt.plot(epochs, memory_util, label='Memory Usage')
+        if history['train_metrics'][0].gpu_utilization is not None:
+            gpu_util = [metric.gpu_utilization for metric in history['train_metrics']]
+            plt.plot(epochs, gpu_util, label='GPU Utilization')
+        plt.title('System Resource Usage')
         plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
+        plt.ylabel('Utilization (%)')
         plt.legend()
         plt.grid(True)
 
+        # Time per epoch plot
+        plt.subplot(2, 2, 3)
+        time_per_epoch = [metric.time_taken for metric in history['train_metrics']]
+        plt.plot(epochs, time_per_epoch)
+        plt.title('Training Time per Epoch')
+        plt.xlabel('Epoch')
+        plt.ylabel('Time (seconds)')
+        plt.grid(True)
+
         # Learning rate plot
-        if 'learning_rate' in history:
-            plt.subplot(2, 2, 3)
-            plt.plot(history['learning_rate'])
-            plt.title('Learning Rate Schedule')
-            plt.xlabel('Epoch')
-            plt.ylabel('Learning Rate')
-            plt.grid(True)
-
-        # IoU plot
-        if 'train_iou' in history:
-            plt.subplot(2, 2, 4)
-            plt.plot(history['train_iou'], label='Training IoU')
-            if 'val_iou' in history:
-                plt.plot(history['val_iou'], label='Validation IoU')
-            plt.title('IoU History')
-            plt.xlabel('Epoch')
-            plt.ylabel('IoU')
-            plt.legend()
-            plt.grid(True)
+        plt.subplot(2, 2, 4)
+        learning_rates = [metric.learning_rate for metric in history['train_metrics']]
+        plt.plot(epochs, learning_rates)
+        plt.title('Learning Rate Schedule')
+        plt.xlabel('Epoch')
+        plt.ylabel('Learning Rate')
+        plt.grid(True)
 
         plt.tight_layout()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.savefig(os.path.join(self.save_dir, f'training_history_{timestamp}.png'), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.save_dir, f'training_history_{timestamp}.png'), 
+                    dpi=300, bbox_inches='tight')
         plt.close()
-
-    def plot_system_metrics(self, metrics_df: pd.DataFrame):
-        """Plot system resource utilization metrics"""
-        plt.figure(figsize=(15, 10))
-        
-        # CPU Usage
-        plt.subplot(3, 1, 1)
-        plt.plot(metrics_df['timestamp'], metrics_df['cpu_percent'])
-        plt.title('CPU Utilization')
-        plt.xlabel('Time')
-        plt.ylabel('CPU Usage (%)')
-        plt.grid(True)
-
-        # Memory Usage
-        plt.subplot(3, 1, 2)
-        plt.plot(metrics_df['timestamp'], metrics_df['memory_percent'])
-        plt.title('Memory Utilization')
-        plt.xlabel('Time')
-        plt.ylabel('Memory Usage (%)')
-        plt.grid(True)
-
-        # GPU Usage (if available)
-        if 'gpu_utilization' in metrics_df.columns:
-            plt.subplot(3, 1, 3)
-            plt.plot(metrics_df['timestamp'], metrics_df['gpu_utilization'])
-            plt.title('GPU Utilization')
+        def plot_system_metrics(self, metrics_df: pd.DataFrame):
+            """Plot system resource utilization metrics"""
+            plt.figure(figsize=(15, 10))
+            
+            # CPU Usage
+            plt.subplot(3, 1, 1)
+            plt.plot(metrics_df['timestamp'], metrics_df['cpu_percent'])
+            plt.title('CPU Utilization')
             plt.xlabel('Time')
-            plt.ylabel('GPU Usage (%)')
+            plt.ylabel('CPU Usage (%)')
             plt.grid(True)
 
-        plt.tight_layout()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.savefig(os.path.join(self.save_dir, f'system_metrics_{timestamp}.png'), dpi=300, bbox_inches='tight')
-        plt.close()
+            # Memory Usage
+            plt.subplot(3, 1, 2)
+            plt.plot(metrics_df['timestamp'], metrics_df['memory_percent'])
+            plt.title('Memory Utilization')
+            plt.xlabel('Time')
+            plt.ylabel('Memory Usage (%)')
+            plt.grid(True)
+
+            # GPU Usage (if available)
+            if 'gpu_utilization' in metrics_df.columns:
+                plt.subplot(3, 1, 3)
+                plt.plot(metrics_df['timestamp'], metrics_df['gpu_utilization'])
+                plt.title('GPU Utilization')
+                plt.xlabel('Time')
+                plt.ylabel('GPU Usage (%)')
+                plt.grid(True)
+
+            plt.tight_layout()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            plt.savefig(os.path.join(self.save_dir, f'system_metrics_{timestamp}.png'), dpi=300, bbox_inches='tight')
+            plt.close()
 
     def create_comparison_report(self, configurations: List[Dict[str, Any]]):
         """Create comparison report for different training configurations"""

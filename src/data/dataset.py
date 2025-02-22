@@ -45,19 +45,32 @@ class LaneDataset(Dataset):
                 self._data.append((image, segmentation, exists))
     
     def __getitem__(self, idx: int) -> Dict:
-        """Get a sample from the dataset"""
-        img_path = os.path.join(self._dataset_path,
-                              "train_set" if self._mode == "train" else "test_set",
-                              self._data[idx][0])
-        
+        """Get a sample from the dataset"""        
+        # img_path = os.path.join(self._dataset_path,
+        #                       "train_set" if self._mode == "train" else "test_set",
+        #                       self._data[idx][0])
+        img_path = '/home/rebbapragada.s/.cache/kagglehub/datasets/manideep1108/tusimple/versions/5/TUSimple'
+        # if + "/train_set" if self._mode == "train" else "/test_set" 
+        if self._mode == "train":
+            img_path = img_path + "/train_set"
+        else:
+            img_path = img_path + "/test_set"
+        img_path = img_path + self._data[idx][0]        
+        # print(img_path)
         # Load and process image
-        image = cv2.imread(img_path)
+        image = cv2.imread(img_path)        
         raw_image = image.copy()
         image = cv2.resize(image, self._image_size, interpolation=cv2.INTER_LINEAR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         # Load and process segmentation
-        seg_path = os.path.join(self._dataset_path, "train_set", self._data[idx][1])
+        seg_path = '/home/rebbapragada.s/.cache/kagglehub/datasets/manideep1108/tusimple/versions/5/TUSimple'
+        if self._mode == "train":
+            seg_path = seg_path + "/train_set"
+        else:
+            seg_path = seg_path + "/test_set"        
+        seg_path = seg_path + self._data[idx][0]
+        # print(seg_path)
         seg_image = cv2.imread(seg_path)
         seg_image = seg_image[:, :, 0]  # Take first channel
         seg_image = cv2.resize(seg_image, self._image_size, interpolation=cv2.INTER_LINEAR)
